@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\MatchMakingController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -14,12 +15,8 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-//Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
-//    return $request->user();
-//});
-
 //Route::apiResource('property', \App\Http\Controllers\PropertyController::class);
 //Route::apiResource('search_profile', \App\Http\Controllers\SearchProfileController::class);
 
 
-Route::get('match/{property_id}', [\App\Http\Controllers\MatchMakingController::class, 'getSearchProfiles']);
+Route::get('match/{property_id}', [MatchMakingController::class, 'getSearchProfiles']);

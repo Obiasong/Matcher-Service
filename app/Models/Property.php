@@ -15,16 +15,21 @@ class Property extends Model
     /**
      * @var mixed
      */
-    private $propertyType;
+    private String $propertyType;
     /**
      * @var mixed
      */
-    private $fields;
+    private array $fields;
 
-    public function getPropertyType(){
-        return $this->propertyType;
+    public static function getPropertyType($property_id){
+        return Property::where('id', $property_id)->select('propertyType')->get();
     }
-    public function getPropertyFields(){
-        return $this->fields;
+
+    public static function getPropertyFields($property_id){
+        return Property::where('id', $property_id)->select('fields')->get();
+    }
+
+    public static function getProperty($property_id){
+        return Property::find($property_id);
     }
 }
