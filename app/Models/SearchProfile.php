@@ -21,12 +21,21 @@ class SearchProfile extends Model
     {
         return $this->searchFields;
     }
+
+    /**
+     * @return String
+     */
+    public function getName(): string
+    {
+        return $this->name;
+    }
+
     public function getSearchProfilePropertyType(): string
     {
         return $this->propertyType;
     }
-    public static function getPropertyTypeSearchProfiles($prop_type){
-        return SearchProfile::where('propertyType', 'LIKE', $prop_type)->get();
+    public static function getPropertyTypeSearchProfiles($propType){
+        return SearchProfile::where('propertyType', 'LIKE', $propType)->get();
     }
 
 }

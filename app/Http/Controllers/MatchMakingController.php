@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\SearchProfile;
 use App\Models\Property;
+use Illuminate\Http\Response;
 use JetBrains\PhpStorm\ArrayShape;
 
 class MatchMakingController extends Controller
@@ -11,32 +12,31 @@ class MatchMakingController extends Controller
     /**
      * Get all search Profiles matching property fields.
      *
-     * @param Property $property_id
-     * @return \Illuminate\Http\Response
+     * @param Property $propertyId
+     * @return Response
      */
-    public function getSearchProfiles(Property $property_id): \Illuminate\Http\Response
+    public function getSearchProfiles(Property $propertyId): Response
     {
-        $matchingSearchProfiles = [];
-            $property_fields = $property_id->fields;
+        $matchingProfiles = [];
+            $propertyFields = $propertyId->fields;
             //Get all search Profiles for a property type
-            $search_profiles = SearchProfile::getPropertyTypeSearchProfiles($property_id->propertyType);
-            foreach ($search_profiles as $sp){
-                $search_fields = $sp->searchFields;
+            $searchProfiles = SearchProfile::getPropertyTypeSearchProfiles($propertyId->propertyType);
+            foreach ($searchProfiles as $spf){
+                $searchFields = $spf->searchFields;
 //                Get all fields that are common in the property profile as well as the search profile
-                $fields_to_compare = array_intersect_key($property_fields, $search_fields);
+                $intersectFields = array_intersect_key($propertyFields, $searchFields);
 
-                $profile_match_values = $this->checkSearchProfile($fields_to_compare, $search_fields);
-                $looseMatchesCount = $profile_match_values["looseMatches"];
-                $strictMatchesCount = $profile_match_values["strictMatches"];
-                $missMatch = $profile_match_values["missMatch"];
+                $profileMatchValues = $this->checkSearchProfile($intersectFields, $searchFields);
+                $looseMatchesCount = $profileMatchValues["looseMatches"];
+                $strictMatchesCount = $profileMatchValues["strictMatches"];
+                $missMatch = $profileMatchValues["missMatch"];
                 if($looseMatchesCount+$strictMatchesCount > 0 && !$missMatch){
-                    $sp_array = $this->buildMatchingArray($looseMatchesCount,$strictMatchesCount,$sp->id);
-                    array_push($matchingSearchProfiles, $sp_array);
+                    $spArray = $this->buildMatchingArray($looseMatchesCount,$strictMatchesCount,$spf->id);
+                    array_push($matchingProfiles, $spArray);
                 }
             }
-            $sorted_profiles = $this->sortProfiles($matchingSearchProfiles);
 
-            return response(["data"=>$sorted_profiles]);
+            return response(["data"=>$this->sortProfiles($matchingProfiles)]);
     }
 
 
@@ -44,15 +44,15 @@ class MatchMakingController extends Controller
      * Build the matching array for a particular search profile
      * @param $loose
      * @param $strict
-     * @param $sp_id
+     * @param $spId
      * @return array in required format.
      */
 
     #[ArrayShape(["searchProfileId" => "", "score" => "", "strictMatchesCount" => "", "looseMatchesCount" => ""])]
-    private function buildMatchingArray($loose, $strict, $sp_id): array
+    private function buildMatchingArray($loose, $strict, $spId): array
     {
         return [
-            "searchProfileId" => $sp_id,
+            "searchProfileId" => $spId,
             "score" => $strict+$loose,
             "strictMatchesCount" => $strict,
             "looseMatchesCount" => $loose
@@ -60,37 +60,37 @@ class MatchMakingController extends Controller
     }
 
     #[ArrayShape(["missMatch" => "bool", "looseMatches" => "int", "strictMatches" => "int"])]
-    private function checkSearchProfile($fields_to_compare, $search_fields): array
+    private function checkSearchProfile($intersectFields, $searchFields): array
     {
         $strictMatchesCount = 0;
         $looseMatchesCount = 0;
         $missMatch = false;
-        foreach($fields_to_compare as $key=>$value){
-            if($value != NULL && $search_fields[$key] != NULL) {
-                if(is_array($search_fields[$key])) {
-                    $search_field_min_value = $search_fields[$key][0];
-                    $search_field_max_value = $search_fields[$key][1];
-                    $range_match = $this->checkRangeMatch($value, $search_field_min_value, $search_field_max_value);
-                    if($range_match['strict']) {
+        foreach($intersectFields as $key=> $value){
+            if($value != NULL) {
+                if(is_array($searchFields[$key])) {
+                    $fieldMinValue = $searchFields[$key][0];
+                    $fieldMaxValue = $searchFields[$key][1];
+                    $rangeMatch = $this->checkRangeMatch($value, $fieldMinValue, $fieldMaxValue);
+                    if($rangeMatch['strict']) {
                         $strictMatchesCount++;
                         continue;
-                    }elseif ($range_match['loose']) {
+                    }elseif ($rangeMatch['loose']) {
                         $looseMatchesCount++;
                         continue;
                     }
                     //Check for Miss Matching
-                    if (!$range_match['strict'] && !$range_match['loose'] && ($search_field_min_value != NULL || $search_field_max_value != NULL)) {
+                    if (!$rangeMatch['strict'] && !$rangeMatch['loose'] && ($fieldMinValue != NULL || $fieldMaxValue != NULL)) {
                         $missMatch = True;
                         break;
                     }
-                }else{
-                    if($value == $search_fields[$key]){
+                }
+
+                if($value == $searchFields[$key] || $searchFields[$key] == NULL){
                         $strictMatchesCount++;
                         continue;
-                    }else{
+                }else{
                         $missMatch = True;
                         break;
-                    }
                 }
             }
         }
@@ -103,51 +103,49 @@ class MatchMakingController extends Controller
     }
 
     #[ArrayShape(["strict" => "bool", "loose" => "bool"])]
-    private function checkRangeMatch($value, $search_field_min_value, $search_field_max_value): array
+    private function checkRangeMatch($value, $fieldMinValue, $fieldMaxValue): array
     {
-        $strict_match = FALSE;
-        $loose_match = FALSE;
-        if ($search_field_min_value == NULL && $search_field_max_value != NULL) {
-            if ($value <= $search_field_max_value) {
-                $strict_match = TRUE;
-            } elseif ($value <= $this->maxDeviation($search_field_max_value, 25)) {
-                $loose_match = TRUE;
-            }
-        } elseif ($search_field_min_value != NULL && $search_field_max_value == NULL) {
-            if ($value >= $search_field_min_value) {
-                $strict_match = TRUE;
-            } elseif ($value >= $this->minDeviation($search_field_min_value, 25)) {
-                $loose_match = TRUE;
-            }
-        } elseif ($search_field_min_value != NULL && $search_field_max_value != NULL) {
-            if ($value <= $search_field_max_value && $value >= $search_field_min_value) {
-                $strict_match = TRUE;
-            } elseif ($value >= $this->minDeviation($search_field_min_value, 25) &&
-                $value <= $this->maxDeviation($search_field_max_value, 25)) {
-                $loose_match = TRUE;
-            }
+        $strictMatch = FALSE;
+        $looseMatch = FALSE;
+        if ($fieldMinValue == NULL && $fieldMaxValue == NULL){
+            $strictMatch = TRUE;
+        } elseif ($fieldMinValue == NULL && $fieldMaxValue != NULL) {
+            if ($value <= $fieldMaxValue)
+                $strictMatch = TRUE;
+            elseif ($value <= $this->maxDeviation($fieldMaxValue, 25))
+                $looseMatch = TRUE;
+        } elseif ($fieldMinValue != NULL && $fieldMaxValue == NULL) {
+            if ($value >= $fieldMinValue)
+                $strictMatch = TRUE;
+            elseif ($value >= $this->minDeviation($fieldMinValue, 25))
+                $looseMatch = TRUE;
+        } elseif ($fieldMinValue != NULL && $fieldMaxValue != NULL) {
+            if ($value <= $fieldMaxValue && $value >= $fieldMinValue)
+                $strictMatch = TRUE;
+            elseif ($value >= $this->minDeviation($fieldMinValue, 25) && $value <= $this->maxDeviation($fieldMaxValue, 25))
+                $looseMatch = TRUE;
         }
         return [
-            "strict" => $strict_match,
-            "loose" =>$loose_match
+            "strict" => $strictMatch,
+            "loose" =>$looseMatch
         ];
     }
 
-    private function minDeviation($val, $percent_dev): float|int
+    private function minDeviation($val, $percentDev): float|int
     {
-       return $val - ($val * ($percent_dev/100));
+       return $val - ($val * ($percentDev/100));
     }
 
-    private function maxDeviation($val, $percent_dev): float|int
+    private function maxDeviation($val, $percentDev): float|int
     {
-        return $val + ($val * ($percent_dev/100));
+        return $val + ($val * ($percentDev/100));
     }
 
-    private function sortProfiles($matchingSearchProfiles){
-        usort($matchingSearchProfiles, function($a, $b) {
-            return $b['score'] <=> $a['score'];
+    private function sortProfiles($searchProfiles){
+        usort($searchProfiles, function($prev, $new) {
+            return $new['score'] <=> $prev['score'];
         });
-        return $matchingSearchProfiles;
+        return $searchProfiles;
     }
 
 }

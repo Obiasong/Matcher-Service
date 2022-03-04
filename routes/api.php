@@ -14,7 +14,4 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-//Route::apiResource('property', \App\Http\Controllers\PropertyController::class);
-//Route::apiResource('search_profile', \App\Http\Controllers\SearchProfileController::class);
-
-Route::get('match/{property_id}', [MatchMakingController::class, 'getSearchProfiles']);
+Route::get('match/{propertyId}', [MatchMakingController::class, 'getSearchProfiles']);

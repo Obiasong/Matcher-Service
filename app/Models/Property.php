@@ -15,10 +15,10 @@ class Property extends Model
 
     private String $name;
     private String $address;
-    private ?string $propertyType = null;
+    private string $propertyType;
     private ?array $fields = null;
 
-    public function getPropertyType(): ?string
+    public function getPropertyType()
     {
         return $this->propertyType;
     }
@@ -27,5 +27,22 @@ class Property extends Model
     {
         return $this->fields;
     }
+
+    /**
+     * @return String
+     */
+    public function getName(): string
+    {
+        return $this->name;
+    }
+
+    /**
+     * @return String
+     */
+    public function getAddress(): string
+    {
+        return $this->address;
+    }
+
 
 }
