@@ -12,24 +12,20 @@ class Property extends Model
     protected $casts = [
         "fields"=>'array'
     ];
-    /**
-     * @var mixed
-     */
-    private String $propertyType;
-    /**
-     * @var mixed
-     */
-    private array $fields;
 
-    public static function getPropertyType($property_id){
-        return Property::where('id', $property_id)->select('propertyType')->get();
+    private String $name;
+    private String $address;
+    private ?string $propertyType = null;
+    private ?array $fields = null;
+
+    public function getPropertyType(): ?string
+    {
+        return $this->propertyType;
     }
 
-    public static function getPropertyFields($property_id){
-        return Property::where('id', $property_id)->select('fields')->get();
+    public function getPropertyFields(): ?array
+    {
+        return $this->fields;
     }
 
-    public static function getProperty($property_id){
-        return Property::find($property_id);
-    }
 }

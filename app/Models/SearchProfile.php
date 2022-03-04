@@ -14,13 +14,17 @@ class SearchProfile extends Model
     ];
     private String $propertyType;
     private String $name;
-    private array $searchFields;
+    private ?array $searchFields = null;
 
 
-    public function getSearchProfileFields($profile_id){
-        return SearchProfile::where('id', $profile_id)->select('searchFields')->get();
+    public function getSearchProfileFields(): ?array
+    {
+        return $this->searchFields;
     }
-
+    public function getSearchProfilePropertyType(): string
+    {
+        return $this->propertyType;
+    }
     public static function getPropertyTypeSearchProfiles($prop_type){
         return SearchProfile::where('propertyType', 'LIKE', $prop_type)->get();
     }
